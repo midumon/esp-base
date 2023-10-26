@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rheinturm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+  </head>
+  <body>
+    <div class="topnav">
+      <h1>Setup</h1>
+    </div>
+    <div class="content">
+	
+	  <div class="card-grid"> 
+	  
+        <div class="card">
+			<p class="card-title">Uhr</p>
+        <form action="/" method="POST">
+			
+            <label for="UH">Color</label>
+			<br>
+			<input type="range" min="0" max="360" id ="HUE-H" name="UH" value="%STATE_UH%" oninput="rangeValueUH.innerText = this.value"><p id="rangeValueUH">%STATE_UH%</p>
+			</br>
+            <label for="US">S&auml;ttigung</label>
+			<br>
+			<input type="range" min="0" max="100" id ="HUE-S" name="US" value="%STATE_US%" oninput="rangeValueUS.innerText = this.value"><p id="rangeValueUS">%STATE_US%</p>
+			</br>
+            <label for="UV">Helligkeit</label>
+			<br>
+			<input type="range" min="0" max="100" id ="HUE-V" name="UV" value="%STATE_UV%" oninput="rangeValueUV.innerText = this.value"><p id="rangeValueUV">%STATE_UV%</p>
+		
+            <input class="button-sub" type ="submit" value ="Submit">
+		
+        </form>
+        </div>
+		
+        <div class="card">
+			<p class="card-title">Trenner</p>
+        <form action="/" method="POST">
+		
+            <label for="TH">Color</label>
+			<br>
+			<input class="hue-h" type="range" min="0" max="360" id ="HUE-H" name="TH" value="%STATE_TH%" oninput="rangeValueTH.innerText = this.value"><p id="rangeValueTH">%STATE_TH%</p>
+			</br>
+            <label for="TS">S&auml;ttigung</label>
+			<br>
+			<input class="hue-s" type="range" min="0" max="100" id ="HUE-S" name="TS" value="%STATE_TS%" oninput="rangeValueTS.innerText = this.value"><p id="rangeValueTS">%STATE_TS%</p>			
+			</br>
+            <label for="TV">Helligkeit</label>
+			<br>
+			<input class="hue-v" type="range" min="0" max="100" id ="HUE-V" name="TV" value="%STATE_TV%" oninput="rangeValueTV.innerText = this.value"><p id="rangeValueTV">%STATE_TV%</p>
+	
+            <input class="button-sub" type ="submit" value ="Submit">
+		
+        </form>
+        </div>
+      
+	  	<div class="card">
+			<p class="card-title">Trenner Funktion</p>
+        <form action="/" method="POST">
+			<p>
+			<select name="SEP_FNC" id="SEP_FNC">
+				<option %STATE_SEP_0% value="0">aus</option>
+				<option %STATE_SEP_1% value="1">flash </option>
+				<option %STATE_SEP_2% value="2">an</option>
+			</select>
+		  	</br>
+            <input class="button-sub" type ="submit" value ="Submit">
+			</p> 
+        </form>
+        </div>
+		
+	    <div class="card">
+		    <p class="card-title">Default</p>
+        <form action="/" method="POST">
+            <input type="hidden" id ="RESETDEFAULT" name="RESETDEFAULT" value="1">
+			<input type="hidden" id ="SEP_FNC" name="SEP_FNC" value="1">
+			
+			<label for="u">Uhr</label>
+			<br>
+			<input type="text" value="%STATE_DEFAULT_UH%" disabled>
+			<input type="text" value="%STATE_DEFAULT_US%" disabled>
+			<input type="text" value="%STATE_DEFAULT_UV%" disabled>
+            <br>
+			<label for="t">Trenner</label>
+			<br>
+            <input type="text" value="%STATE_DEFAULT_TH%" disabled>
+            <input type="text" value="%STATE_DEFAULT_TS%" disabled>
+            <input type="text" value="%STATE_DEFAULT_TV%" disabled>
+            <br>
+            <input class="button-rst" type ="submit" value ="Reset">
+           
+        </form>
+        </div>
+
+  </body>
+</html>
