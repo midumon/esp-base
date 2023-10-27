@@ -510,7 +510,7 @@ void setup() {
     WiFi.mode(WIFI_AP);
     
     // NULL sets an open Access Point
-    WiFi.softAP(c_Hostname.c_str(), NULL); // Soft AP ohne Passwort
+    WiFi.softAP(c_softAPName.c_str(), NULL); // Soft AP ohne Passwort
 
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
@@ -527,6 +527,11 @@ void setup() {
     // Web Server Root URL
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
       request->send(SPIFFS, "/wifimanager.html", "text/html", false, processor);
+    });
+    
+    // Web Server Restart URL
+    server.on("/restart", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/restart.html", "text/html", false, processor);
     });
     
     server.serveStatic("/", SPIFFS, "/");
@@ -554,7 +559,7 @@ void setup() {
           
         }
       }
-      request->send(SPIFFS, "/restart.html", "text/html");
+      request->send(SPIFFS, "/restart.html", "text/html", false, processor);
       delay(1000);
       ESP.restart();
     });
