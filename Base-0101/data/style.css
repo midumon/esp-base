@@ -87,7 +87,7 @@ input[type="range"] {
 /***** Track Styles *****/
 /***** Chrome, Safari, Opera, and Edge Chromium *****/
 input#HUE-H[type="range"]::-webkit-slider-runnable-track { 
-  background: linear-gradient(to right, red, orange, yellow, lime, green,Turquoise,Cyan,Blue,Violet,Magenta,Crimson,red);
+  background-image: linear-gradient(to right, red, orange, yellow, lime, green,Turquoise,Cyan,Blue,Violet,Magenta,Crimson,red);
   height: 1rem;
 }
 
