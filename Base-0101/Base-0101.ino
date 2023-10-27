@@ -413,6 +413,11 @@ void setup() {
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
+
+    // Web Server WiFi URL
+    server.on("/wifi", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/wifimanager.html", "text/html", false, processor);
+    });
     
     server.serveStatic("/", SPIFFS, "/");
 
@@ -489,6 +494,35 @@ void setup() {
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
+    server.on("/wifi", HTTP_POST, [](AsyncWebServerRequest *request) {
+      int params = request->params();
+
+       // open myPref Preferences in RW
+       prefs.begin("myPref", false);
+  
+      for(int i=0;i<params;i++){
+        AsyncWebParameter* p = request->getParam(i);
+        if(p->isPost()){
+          // HTTP POST ssid value
+          if (p->name() == "ssid") {
+            ssid = p->value().c_str();
+            prefs.putString("ssid", ssid);
+          }
+          // HTTP POST pass value
+          if (p->name() == "pass") {
+            pass = p->value().c_str();
+            prefs.putString("pass", pass);
+          }
+          // HTTP POST hostname value
+          if (p->name() == "hostname") {
+            c_Hostname = p->value().c_str();
+            prefs.putString("Hostname", c_Hostname);
+          }
+        }
+      }
+      request->send(SPIFFS, "/wifimanager.html", "text/html", false, processor);
+    });
+    
     // Start the Server
     server.begin();
 
@@ -533,7 +567,7 @@ void setup() {
     server.on("/restart", HTTP_GET, [](AsyncWebServerRequest *request){
       request->send(SPIFFS, "/restart.html", "text/html", false, processor);
     });
-    
+
     server.serveStatic("/", SPIFFS, "/");
     
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -556,7 +590,6 @@ void setup() {
             c_Hostname = p->value().c_str();
             prefs.putString("Hostname", c_Hostname);
           }
-          
         }
       }
       request->send(SPIFFS, "/restart.html", "text/html", false, processor);

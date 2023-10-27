@@ -59,13 +59,13 @@
 	  	<div class="card">
 			<p class="card-title">Trenner Funktion</p>
         <form action="/" method="POST">
-			<p>
+	
 			<select name="SEP_FNC" id="SEP_FNC">
 				<option %STATE_SEP_0% value="0">aus</option>
 				<option %STATE_SEP_1% value="1">flash </option>
 				<option %STATE_SEP_2% value="2">an</option>
 			</select>
-		  	</br>
+         <br>
             <input class="button-sub" type ="submit" value ="Submit">
 			</p> 
         </form>
@@ -75,19 +75,7 @@
 		    <p class="card-title">Default</p>
         <form action="/" method="POST">
             <input type="hidden" id ="RESETDEFAULT" name="RESETDEFAULT" value="1">
-			<input type="hidden" id ="SEP_FNC" name="SEP_FNC" value="1">
-			
-			<label for="u">Uhr</label>
-			<br>
-			<input type="text" value="%STATE_DEFAULT_UH%" disabled>
-			<input type="text" value="%STATE_DEFAULT_US%" disabled>
-			<input type="text" value="%STATE_DEFAULT_UV%" disabled>
-            <br>
-			<label for="t">Trenner</label>
-			<br>
-            <input type="text" value="%STATE_DEFAULT_TH%" disabled>
-            <input type="text" value="%STATE_DEFAULT_TS%" disabled>
-            <input type="text" value="%STATE_DEFAULT_TV%" disabled>
+
             <br>
             <input class="button-rst" type ="submit" value ="Reset">
            
