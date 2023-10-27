@@ -387,7 +387,7 @@ void setup() {
   prefs.putString("softAPName", c_softAPName);
 
   c_UserAgent = prefs.getString("UserAgent", d_UserAgent + "-" + c_ProductMac);
-  prefs.putString("softAPName", c_UserAgent);
+  prefs.putString("UserAgent", c_UserAgent);
 
   c_Product = prefs.getString("Product", c_ChipModel + "-" + c_ChipRevision + "-" + c_ProductMac);
   prefs.putString("Product", c_Product); 
