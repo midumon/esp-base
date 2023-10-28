@@ -546,10 +546,6 @@ void setup() {
     // NULL sets an open Access Point
     WiFi.softAP(c_softAPName.c_str(), NULL); // Soft AP ohne Passwort
 
-    IPAddress IP = WiFi.softAPIP();
-    Serial.print("AP IP address: ");
-    Serial.println(IP); 
-
     // DNS Name setzen
     if (!MDNS.begin(d_Hostname)) {
         Serial.println("Error setting up MDNS responder!");
@@ -592,6 +588,10 @@ void setup() {
           }
         }
       }
+
+      
+
+    
       request->send(SPIFFS, "/restart.html", "text/html", false, processor);
       delay(1000);
       ESP.restart();

@@ -21,9 +21,10 @@ bool initWiFi() {
       return false;
     }
   }
-  
-  Serial.print(' ');
-  Serial.println(WiFi.localIP());
+
+  c_ip = WiFi.softAPIP();
+  Serial.print("Station IP address: ");
+  Serial.println(c_ip); 
   
   return true;
 }
@@ -79,16 +80,16 @@ String processor(const String& var) {
     return c_Hostname;
   }
   if(var == "STATE_IP") {
-    return String(c_ip);
+    return c_ip.toString();
   }
   if(var == "STATE_DNS") {
-    return String(c_dns);
+    return c_dns.toString();
   }  
   if(var == "STATE_GATEWAY") {
-    return String(c_gateway);
+    return c_gateway.toString();
   }
   if(var == "STATE_MASK") {
-    return String(c_mask);
+    return c_mask.toString();
   } 
   return String();
 }
