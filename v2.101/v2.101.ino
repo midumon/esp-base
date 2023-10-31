@@ -47,7 +47,7 @@
 Preferences prefs;
 
 // Firmware und Produktinfo
-String d_Firmware = "V.0.0.4-base0101";
+String d_Firmware = "V2.101";
 String c_Firmware;
 String c_Product;
 String c_ProductMac;
