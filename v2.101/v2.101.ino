@@ -1,7 +1,10 @@
 /*** Projekt
  ###
  
- Projekt für ESP32C3 Board
+ Projekt für 
+ 
+ Chip: ESP32 
+ Board: MH-ET-ESP32LIVEminiKit
    
  Sandwich Modell mit 46 Pixeln
  AdaFruit Stripe Standard
