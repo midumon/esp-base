@@ -1,30 +1,29 @@
-/*
- * 
- * Die Uhr mit 46 Pixeln
- * 
+/* 
+ *  Pixels.h - Deklaration
+ *  Pixels.cpp - Definition
+ *  ***
+ *  Die eigentliche Uhr
+ *  ***
+ *  Michel 02.11.2023
  */
 
-// Pin für den Data Anschluss
+#include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
+#include "GlobalVars.h"
+#include "Pixels.h" // Deklaration
+
+/* Pin für den Data Anschluss */
 const int UHR_PIN = D10;
+/* Anzahl Led's */
+const int NUMPIXELS = 46;
 
-// Anzahl Led's
-const int NUMPIXELS = 136;
-
-// Alles was direkt für die Uhr benötigt wird
-int i; // Zeiger
-int s, m, h;  // s== Sekunde m == Minute h == Stunde
-int so = 99;  // Sekunde old mit Vorbelegung für ersten loop
-int mo = 99;  // Minute old mit Vorbelegung für ersten loop
-int ho = 99;  // Stunde old mit Vorbelegung für ersten loop
-int s10, s1;  // TENSecond ONESecond
-int m10, m1;  // TENMinute ONEMinute
-int h10, h1;  // TENHour ONEHour
-
-// LED Farben definieren
-// HSV...
-// h == Farbe HUE 0 - 65535 0 - 360 Grad
-// s == Sättigung SAT 0- 255 0 - 100% 0 == ws >0 == color
-// v == Helligkeit VAL 0 - 255 /  0 - 100%
+/* 
+ *  LED Farben definieren
+ *  HSV...
+ *  H == Farbe HUE 0 - 65535 0 - 360 Grad
+ *  S == Sättigung SAT 0- 255 0 - 100% 0 == ws >0 == color
+ *  V == Helligkeit VAL 0 - 255 /  0 - 100%
+*/
 
 // LED Werte
 // LED aus
@@ -32,48 +31,68 @@ uint16_t offH = 0;
 uint8_t offS = 0;
 uint8_t offV = 0;
 
-// Farbe der Uhr
-// default >> WHITE
+/* Farbe der Uhr */
+/* default >> WHITE */
 uint16_t d_UhrH = 0;
 uint8_t d_UhrS = 0;
 uint8_t d_UhrV = 10;
-// current
+/* current */
 uint16_t c_UhrH;
 uint8_t c_UhrS;
 uint8_t c_UhrV;
-// temp
+/* temp */
 uint16_t t_UhrH;
 uint8_t t_UhrS;
 uint8_t t_UhrV;
 
-// Farbe der Trenner
-// default >> ROT
+/* Farbe der Trenner */
+/* default >> ROT */
 uint16_t d_SepH = 360;
 uint8_t d_SepS = 100;
 uint8_t d_SepV = 10;
-// current
+/* current */
 uint16_t c_SepH;
 uint8_t c_SepS;
 uint8_t c_SepV;
-// temp
+/* temp */
 uint16_t t_SepH;
 uint8_t t_SepS;
 uint8_t t_SepV;
 
-int d_SepState = 1;  // 0 nie an 1 falsh 2 immer an
+/*
+ * Seperator State
+ * 0 == nie an
+ * 1 == flash original
+ * 2 == immer an 
+ * d_SepState >> default 1
+ * c_SepState >> current
+*/
+ 
+int d_SepState = 1;
 int c_SepState;
 
-// 46 LED Adressen [0,...,46] mit Zuordnung zu ihrer Funktion
-byte oneSecond[] = { 0, 3, 6, 9, 12, 15, 18, 21, 24 };           //09
-byte tenSecond[] = { 30, 33, 36, 39, 42 };                  //15,16
-byte oneMinute[] = { 51, 54, 57, 60, 63, 66, 69, 72, 75 };  //26
-byte tenMinute[] = { 81, 84, 87, 90, 93 };                  //32,33
-byte oneHour[] = { 102, 105, 108, 111, 114, 117, 120, 123, 126};    //43
-byte tenHour[] = { 132, 135 };
-byte Separator[] = { 27, 45, 48, 78, 96, 99, 129};
+// Zeiger für Schleife
+int i; 
+
+/* 46 LED Adressen [0,...,45] mit Zuordnung zu ihrer Funktion */
+byte oneSecond[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };           //09
+byte tenSecond[] = { 10, 11, 12, 13, 14 };                  //15,16
+byte oneMinute[] = { 17, 18, 19, 20, 21, 22, 23, 24, 25 };  //26
+byte tenMinute[] = { 27, 28, 29, 30, 31 };                  //32,33
+byte oneHour[] = { 34, 35, 36, 37, 38, 39, 40, 41, 42 };    //43
+byte tenHour[] = { 44, 45 };
+byte Separator[] = { 9, 15, 16, 26, 32, 33, 43 };
 
 Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_GRB + NEO_KHZ800);
 #define LED(x, h, s, v) pixels.setPixelColor(x, pixels.ColorHSV(h, s, v))
+
+void BeginPixels(){
+    pinMode(UHR_PIN, OUTPUT); // set Pin als Output
+}
+
+void ShowPixels(){
+    pixels.show();  // showtime - Init all pixels OFF
+}
 
 void MakePixels() {
 
@@ -126,5 +145,3 @@ void MakePixels() {
   delay(20);
   pixels.show();  // showtime
 }
-
-// ENDE Pixel

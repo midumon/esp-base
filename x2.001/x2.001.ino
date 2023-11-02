@@ -1,7 +1,10 @@
 /*** Projekt
  ###
  
- Projekt für ESP32C3 Board
+ Projekt für 
+ 
+ Chip: ESP32C3 
+ Board: XIAO ESP32C3
    
  Sandwich Modell mit 46 Pixeln
  AdaFruit Stripe Standard
@@ -30,75 +33,26 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include "SPIFFS.h"
-#include <Adafruit_NeoPixel.h>
+//#include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 
-// my source
-#include "pixel_46_s1.h"
-//#include "pixel_46_s2.h"
-//#include "pixel_46_s3.h"
-//#include "pixel_46_s4.h"
+// test mit verteilten Dateien
+#include "GlobalVars.h"
+#include "Pixels.h"
+#include "Helper.h"
 
-
-// Nicht flüchtige Variablen als preferences
+/* Nicht flüchtige Variablen als prefs */
 Preferences prefs;
 
-// Firmware und Produktinfo
-String d_Firmware = "V.0.0.4-base0101";
-String c_Firmware;
-String c_Product;
-String c_ProductMac;
-String c_ChipModel;
-uint8_t c_ChipRevision;
-String d_ProductName = "TestDev003";
-String c_ProductName;
-
-// ### Filesystem ###
-// Information SPIFFS
-unsigned int totalBytes;
-unsigned int usedBytes;
-// Ausgabe Dir
-void printDirectory(File dir, int numTabs = 3);
-
-
-// ### Wifi ###
-String ssid = "A";
-String pass = "B";
-String d_softAPName = "rheinturm";
-String c_softAPName;
-
-// statische Netzwerk Adressen
-IPAddress d_ip(192, 168, 0, 200);
-IPAddress c_ip;
-IPAddress d_dns(192, 168, 0, 2);
-IPAddress c_dns;
-IPAddress d_gateway(192, 168, 0, 1);
-IPAddress c_gateway;
-IPAddress d_mask(255, 255, 255, 0);
-IPAddress c_mask;
-
-// HTTP/S
-String d_UserAgent = "MAF-RT";
-String c_UserAgent;
 // Create HTTPClient
 WiFiClientSecure wifiClient;
 HTTPClient httpClient;
     
-// ### MDNS ###
-// Variablen
-String d_Hostname = "rheinturm";
-String c_Hostname = "";
-
 // ### Webserver ###
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 // ### NTP ###
-// Variablen
-const char* ntpServer = "pool.ntp.org";
-const long updateInterval = 3600000;  // 60 * 60 * 1000 == 1 Stunde
-int32_t d_gmtOffset = 0;
-int32_t c_gmtOffset = 0;
 // Create NTP-Client
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, ntpServer, c_gmtOffset, updateInterval);
@@ -109,45 +63,106 @@ size_t JSON_Buffer_size;
 DynamicJsonDocument myInfo(2048);
 DynamicJsonDocument toKafka(2048);
 
+// Timer variables
+unsigned long previousMillis = 0;
+const long interval = 5000;  // interval to wait for Wi-Fi connection (milliseconds)
+
+bool initWiFi() {
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  Serial.print("Connecting to WiFi ..");
+
+  unsigned long currentMillis = millis();
+  previousMillis = currentMillis;
+
+  while(WiFi.status() != WL_CONNECTED) {
+    currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      Serial.println("Failed to connect.");
+      return false;
+    }
+  }
+
+  c_ip = WiFi.softAPIP();
+  Serial.print("Station IP address: ");
+  Serial.println(c_ip); 
+  
+  return true;
+}
+
+// HTML Prozessor
+// Platzhalter durch aktuelle Werte ersetzen
+String processor(const String& var) {
+  if(var == "STATE_UH") {
+    return String(c_UhrH);
+  }
+  if(var == "STATE_US") {
+    return String(c_UhrS);
+  }
+  if(var == "STATE_UV") {
+    return String(c_UhrV);
+  }
+  if(var == "STATE_TH") {
+    return String(c_SepH);
+  }
+  if(var == "STATE_TS") {
+    return String(c_SepS);
+  }
+  if(var == "STATE_TV") {
+    return String(c_SepV);
+  }
+  if((var == "STATE_SEP_0") && (c_SepState == 0)) {
+    return "selected";
+  }
+  if((var == "STATE_SEP_1") && (c_SepState == 1)) {
+    return "selected";
+  }
+  if((var == "STATE_SEP_2") && (c_SepState == 2)) {
+    return "selected";
+  }
+  if(var == "STATE_DEFAULT_UH") {
+    return String(d_UhrH);
+  }
+  if(var == "STATE_DEFAULT_US") {
+    return String(d_UhrS);
+  }
+  if(var == "STATE_DEFAULT_UV") {
+    return String(d_UhrV);
+  }
+  if(var == "STATE_DEFAULT_TH") {
+    return String(d_SepH);
+  }
+  if(var == "STATE_DEFAULT_TS") {
+    return String(d_SepS);
+  }
+  if(var == "STATE_DEFAULT_TV") {
+    return String(d_SepV);
+  }
+  if(var == "STATE_HOSTNAME") {
+    return c_Hostname;
+  }
+  if(var == "STATE_IP") {
+    return c_ip.toString();
+  }
+  if(var == "STATE_DNS") {
+    return c_dns.toString();
+  }  
+  if(var == "STATE_GATEWAY") {
+    return c_gateway.toString();
+  }
+  if(var == "STATE_MASK") {
+    return c_mask.toString();
+  } 
+  return String();
+}
+
 // Initialize SPIFFS
 void initSPIFFS() {
   
   if (!SPIFFS.begin(true)) {
     Serial.println("An error has occurred while mounting SPIFFS");
   }
-
-  // Get all information of your SPIFFS
-  totalBytes = SPIFFS.totalBytes();
-  usedBytes = SPIFFS.usedBytes();
-  
-  Serial.println("File sistem info.");
- 
-  Serial.print("Total space:      ");
-  Serial.print(totalBytes);
-  Serial.println("byte");
- 
-  Serial.print("Total space used: ");
-  Serial.print(usedBytes);
-  Serial.println("byte");
- 
-  Serial.println();
- 
-  // Open dir folder
-  File dir = SPIFFS.open("/");
-  // Cycle all the content
-  printDirectory(dir);
-  
-}
-
-// MAC als String ausgeben
-String getMacAsString() {
-  uint8_t baseMac[6];
-  // Get MAC address for WiFi station
-  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
-  char baseMacChr[18] = {0};
-  sprintf(baseMacChr, "%02X%02X%02X%02X%02X%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
-
-  return String(baseMacChr);
 }
 
 // ### Get my Location ###
@@ -305,6 +320,8 @@ void putToKafka(){
     nestDevice["Useragent"] = c_UserAgent;
     nestDevice["HostIP"] = WiFi.localIP().toString();
     nestDevice["HostName"] = c_Hostname;
+    nestDevice["SPIFFStotalBytes"] = SPIFFS.totalBytes();
+    nestDevice["SPIFFSusedBytes"] = SPIFFS.usedBytes();
 
     nestAutoLocation["city"]= myInfo["city"];
     nestAutoLocation["region"] = myInfo["region"];
@@ -413,14 +430,14 @@ void setup() {
   c_ProductName = prefs.getString("ProductName", d_ProductName);
   prefs.putString("ProductName", c_ProductName);    
   
-  pinMode(UHR_PIN, OUTPUT);
-  pixels.show();  // showtime - Init all pixels OFF
+  BeginPixels();
+  ShowPixels();
 
   // WiFi im Station Mode
   if(initWiFi()) {
 
     // DNS Name setzen
-    if (!MDNS.begin(d_Hostname)) {
+    if (!MDNS.begin(c_Hostname)) {
         Serial.println("Error setting up MDNS responder!");
         while(1) {
             delay(1000);
@@ -600,16 +617,13 @@ void setup() {
             prefs.putString("pass", pass);
           }
           // HTTP POST hostname value
-          if (p->name() == "hostname") {
+          if (p->name() == "mdns") {
             c_Hostname = p->value().c_str();
             prefs.putString("Hostname", c_Hostname);
           }
         }
       }
 
-      
-
-    
       request->send(SPIFFS, "/restart.html", "text/html", false, processor);
       delay(1000);
       ESP.restart();
@@ -623,11 +637,12 @@ void setup() {
   }
   
   delay(100);
+  
 }
 
 // RUN
 void loop() {
- 
+  
   s = timeClient.getSeconds();
   m = timeClient.getMinutes();
   h = timeClient.getHours();
@@ -650,31 +665,5 @@ void loop() {
     ho = h;
     getMyInfo();
     putToKafka();
-  }
-
-  delay(20);
-}
-
-void printDirectory(File dir, int numTabs) {
-  while (true) {
- 
-    File entry =  dir.openNextFile();
-    if (! entry) {
-      // no more files
-      break;
-    }
-    for (uint8_t i = 0; i < numTabs; i++) {
-      Serial.print('\t');
-    }
-    Serial.print(entry.name());
-    if (entry.isDirectory()) {
-      Serial.println("/");
-      printDirectory(entry, numTabs + 1);
-    } else {
-      // files have sizes, directories do not
-      Serial.print("\t\t");
-      Serial.println(entry.size(), DEC);
-    }
-    entry.close();
   }
 }

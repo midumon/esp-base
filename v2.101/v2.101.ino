@@ -3,8 +3,8 @@
  
  Projekt für 
  
- Chip: ESP32 
- Board: MH-ET-ESP32LIVEminiKit
+ Chip: ESP32C3 
+ Board: XIAO ESP32C3
    
  Sandwich Modell mit 46 Pixeln
  AdaFruit Stripe Standard
@@ -36,60 +36,49 @@
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 
-// my source
-#include "pixel_46_s1.h"
-//#include "pixel_46_s2.h"
-//#include "pixel_46_s3.h"
-//#include "pixel_46_s4.h"
-
-
-// Nicht flüchtige Variablen als preferences
+/* Nicht flüchtige Variablen als prefs */
 Preferences prefs;
 
-// Firmware und Produktinfo
+/* Firmware und Produktinfo */
+/* default */
 String d_Firmware = "V2.101";
+String d_Build = "0000";
+String d_ProductName = "Test";
+/* custom */
 String c_Firmware;
+String c_Build;
+String c_ProductName;
 String c_Product;
 String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
-String d_ProductName = "TestDev003";
-String c_ProductName;
-
-// ### Filesystem ###
-// Information SPIFFS
-unsigned int totalBytes;
-unsigned int usedBytes;
-// Ausgabe Dir
-void printDirectory(File dir, int numTabs = 3);
-
 
 // ### Wifi ###
+// default
 String ssid = "A";
 String pass = "B";
 String d_softAPName = "rheinturm";
-String c_softAPName;
-
-// statische Netzwerk Adressen
 IPAddress d_ip(192, 168, 0, 200);
-IPAddress c_ip;
-IPAddress d_dns(192, 168, 0, 2);
-IPAddress c_dns;
+IPAddress d_dns(8, 8, 8, 8);
 IPAddress d_gateway(192, 168, 0, 1);
-IPAddress c_gateway;
 IPAddress d_mask(255, 255, 255, 0);
-IPAddress c_mask;
-
-// HTTP/S
 String d_UserAgent = "MAF-RT";
+// custom
+String c_softAPName;
+IPAddress c_ip;
+IPAddress c_dns;
+IPAddress c_gateway;
+IPAddress c_mask;
 String c_UserAgent;
+
 // Create HTTPClient
 WiFiClientSecure wifiClient;
 HTTPClient httpClient;
     
 // ### MDNS ###
-// Variablen
+// dafault
 String d_Hostname = "rheinturm";
+// custom
 String c_Hostname = "";
 
 // ### Webserver ###
@@ -97,10 +86,11 @@ String c_Hostname = "";
 AsyncWebServer server(80);
 
 // ### NTP ###
-// Variablen
+// default
 const char* ntpServer = "pool.ntp.org";
 const long updateInterval = 3600000;  // 60 * 60 * 1000 == 1 Stunde
 int32_t d_gmtOffset = 0;
+// custom
 int32_t c_gmtOffset = 0;
 // Create NTP-Client
 WiFiUDP ntpUDP;
@@ -112,34 +102,245 @@ size_t JSON_Buffer_size;
 DynamicJsonDocument myInfo(2048);
 DynamicJsonDocument toKafka(2048);
 
+/*
+ * 
+ * Die Uhr mit 46 Pixeln
+ * 
+ */
+
+/* Pin für den Data Anschluss */
+const int UHR_PIN = D10;
+/* Anzahl Led's */
+const int NUMPIXELS = 46;
+
+int i; // Zeiger
+int s, m, h;  // s== Sekunde m == Minute h == Stunde
+int so = 99;  // Sekunde old mit Vorbelegung für ersten loop
+int mo = 99;  // Minute old mit Vorbelegung für ersten loop
+int ho = 99;  // Stunde old mit Vorbelegung für ersten loop
+int s10, s1;  // TENSecond ONESecond
+int m10, m1;  // TENMinute ONEMinute
+int h10, h1;  // TENHour ONEHour
+
+// LED Farben definieren
+// HSV...
+// h == Farbe HUE 0 - 65535 0 - 360 Grad
+// s == Sättigung SAT 0- 255 0 - 100% 0 == ws >0 == color
+// v == Helligkeit VAL 0 - 255 /  0 - 100%
+
+// LED Werte
+// LED aus
+uint16_t offH = 0;
+uint8_t offS = 0;
+uint8_t offV = 0;
+
+/* Farbe der Uhr */
+/* default >> WHITE */
+uint16_t d_UhrH = 0;
+uint8_t d_UhrS = 0;
+uint8_t d_UhrV = 10;
+/* current */
+uint16_t c_UhrH;
+uint8_t c_UhrS;
+uint8_t c_UhrV;
+/* temp */
+uint16_t t_UhrH;
+uint8_t t_UhrS;
+uint8_t t_UhrV;
+
+/* Farbe der Trenner */
+/* default >> ROT */
+uint16_t d_SepH = 360;
+uint8_t d_SepS = 100;
+uint8_t d_SepV = 10;
+/* current */
+uint16_t c_SepH;
+uint8_t c_SepS;
+uint8_t c_SepV;
+/* temp */
+uint16_t t_SepH;
+uint8_t t_SepS;
+uint8_t t_SepV;
+
+/*
+ * Seperator State
+ * 0 == nie an
+ * 1 == flash original
+ * 2 == immer an 
+ * d_SepState >> default 1
+ * c_SepState >> current
+ */
+int d_SepState = 1;
+int c_SepState;
+
+/* 46 LED Adressen [0,...,46] mit Zuordnung zu ihrer Funktion */
+byte oneSecond[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };           //09
+byte tenSecond[] = { 10, 11, 12, 13, 14 };                  //15,16
+byte oneMinute[] = { 17, 18, 19, 20, 21, 22, 23, 24, 25 };  //26
+byte tenMinute[] = { 27, 28, 29, 30, 31 };                  //32,33
+byte oneHour[] = { 34, 35, 36, 37, 38, 39, 40, 41, 42 };    //43
+byte tenHour[] = { 44, 45 };
+byte Separator[] = { 9, 15, 16, 26, 32, 33, 43 };
+
+Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_GRB + NEO_KHZ800);
+#define LED(x, h, s, v) pixels.setPixelColor(x, pixels.ColorHSV(h, s, v))
+
+void MakePixels() {
+
+  t_UhrH = map(c_UhrH, 0, 360, 0, 65535);
+  t_UhrS = map(c_UhrS, 0, 100, 0, 255);
+  t_UhrV = map(c_UhrV, 0, 100, 0, 255);
+  
+  t_SepH = map(c_SepH, 0, 360, 0, 65535);
+  t_SepS = map(c_SepS, 0, 100, 0, 255);
+  t_SepV = map(c_SepV, 0, 100, 0, 255);
+
+  // Sekunden
+  s1 = s % 10;
+  s10 = s / 10;
+
+  // Minuten
+  m1 = m % 10;
+  m10 = m / 10;
+
+  // Stunden
+  h1 = h % 10;
+  h10 = h / 10;
+
+  // Set Pixels AN/AUS
+  for (i = 0; i < sizeof(oneSecond); i++)
+    (s1 <= i ? LED(oneSecond[i], offH, offS, offV) : LED(oneSecond[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenSecond); i++)
+    (s10 <= i ? LED(tenSecond[i], offH, offS, offV) : LED(tenSecond[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(oneMinute); i++)
+    (m1 <= i ? LED(oneMinute[i], offH, offS, offV) : LED(oneMinute[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenMinute); i++)
+    (m10 <= i ? LED(tenMinute[i], offH, offS, offV) : LED(tenMinute[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(oneHour); i++)
+    (h1 <= i ? LED(oneHour[i], offH, offS, offV) : LED(oneHour[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenHour); i++)
+    (h10 <= i ? LED(tenHour[i], offH, offS, offV) : LED(tenHour[i], t_UhrH, t_UhrS, t_UhrV));
+
+  // Separator
+  if (((s1 == 9) && (s10 == 5) && c_SepState == 1) || ((m1 == 9) && (m10 == 5) && c_SepState == 1) || c_SepState == 2) {
+    for (int i = 0; i < sizeof(Separator); i++) LED(Separator[i], t_SepH, t_SepS, t_SepV);
+  } else {
+    for (int i = 0; i < sizeof(Separator); i++) LED(Separator[i], offH, offS, offV);
+  }
+
+  delay(20);
+  pixels.show();  // showtime
+}
+
+// ENDE Pixel
+
+
+
+// Timer variables
+unsigned long previousMillis = 0;
+const long interval = 5000;  // interval to wait for Wi-Fi connection (milliseconds)
+
+bool initWiFi() {
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  Serial.print("Connecting to WiFi ..");
+
+  unsigned long currentMillis = millis();
+  previousMillis = currentMillis;
+
+  while(WiFi.status() != WL_CONNECTED) {
+    currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      Serial.println("Failed to connect.");
+      return false;
+    }
+  }
+
+  c_ip = WiFi.softAPIP();
+  Serial.print("Station IP address: ");
+  Serial.println(c_ip); 
+  
+  return true;
+}
+
+// HTML Prozessor
+// Platzhalter durch aktuelle Werte ersetzen
+String processor(const String& var) {
+  if(var == "STATE_UH") {
+    return String(c_UhrH);
+  }
+  if(var == "STATE_US") {
+    return String(c_UhrS);
+  }
+  if(var == "STATE_UV") {
+    return String(c_UhrV);
+  }
+  if(var == "STATE_TH") {
+    return String(c_SepH);
+  }
+  if(var == "STATE_TS") {
+    return String(c_SepS);
+  }
+  if(var == "STATE_TV") {
+    return String(c_SepV);
+  }
+  if((var == "STATE_SEP_0") && (c_SepState == 0)) {
+    return "selected";
+  }
+  if((var == "STATE_SEP_1") && (c_SepState == 1)) {
+    return "selected";
+  }
+  if((var == "STATE_SEP_2") && (c_SepState == 2)) {
+    return "selected";
+  }
+  if(var == "STATE_DEFAULT_UH") {
+    return String(d_UhrH);
+  }
+  if(var == "STATE_DEFAULT_US") {
+    return String(d_UhrS);
+  }
+  if(var == "STATE_DEFAULT_UV") {
+    return String(d_UhrV);
+  }
+  if(var == "STATE_DEFAULT_TH") {
+    return String(d_SepH);
+  }
+  if(var == "STATE_DEFAULT_TS") {
+    return String(d_SepS);
+  }
+  if(var == "STATE_DEFAULT_TV") {
+    return String(d_SepV);
+  }
+  if(var == "STATE_HOSTNAME") {
+    return c_Hostname;
+  }
+  if(var == "STATE_IP") {
+    return c_ip.toString();
+  }
+  if(var == "STATE_DNS") {
+    return c_dns.toString();
+  }  
+  if(var == "STATE_GATEWAY") {
+    return c_gateway.toString();
+  }
+  if(var == "STATE_MASK") {
+    return c_mask.toString();
+  } 
+  return String();
+}
+
 // Initialize SPIFFS
 void initSPIFFS() {
   
   if (!SPIFFS.begin(true)) {
     Serial.println("An error has occurred while mounting SPIFFS");
   }
-
-  // Get all information of your SPIFFS
-  totalBytes = SPIFFS.totalBytes();
-  usedBytes = SPIFFS.usedBytes();
-  
-  Serial.println("File sistem info.");
- 
-  Serial.print("Total space:      ");
-  Serial.print(totalBytes);
-  Serial.println("byte");
- 
-  Serial.print("Total space used: ");
-  Serial.print(usedBytes);
-  Serial.println("byte");
- 
-  Serial.println();
- 
-  // Open dir folder
-  File dir = SPIFFS.open("/");
-  // Cycle all the content
-  printDirectory(dir);
-  
 }
 
 // MAC als String ausgeben
@@ -308,6 +509,8 @@ void putToKafka(){
     nestDevice["Useragent"] = c_UserAgent;
     nestDevice["HostIP"] = WiFi.localIP().toString();
     nestDevice["HostName"] = c_Hostname;
+    nestDevice["SPIFFStotalBytes"] = SPIFFS.totalBytes();
+    nestDevice["SPIFFSusedBytes"] = SPIFFS.usedBytes();
 
     nestAutoLocation["city"]= myInfo["city"];
     nestAutoLocation["region"] = myInfo["region"];
@@ -423,7 +626,7 @@ void setup() {
   if(initWiFi()) {
 
     // DNS Name setzen
-    if (!MDNS.begin(d_Hostname)) {
+    if (!MDNS.begin(c_Hostname)) {
         Serial.println("Error setting up MDNS responder!");
         while(1) {
             delay(1000);
@@ -603,16 +806,13 @@ void setup() {
             prefs.putString("pass", pass);
           }
           // HTTP POST hostname value
-          if (p->name() == "hostname") {
+          if (p->name() == "mdns") {
             c_Hostname = p->value().c_str();
             prefs.putString("Hostname", c_Hostname);
           }
         }
       }
 
-      
-
-    
       request->send(SPIFFS, "/restart.html", "text/html", false, processor);
       delay(1000);
       ESP.restart();
@@ -626,6 +826,7 @@ void setup() {
   }
   
   delay(100);
+  
 }
 
 // RUN
@@ -653,31 +854,5 @@ void loop() {
     ho = h;
     getMyInfo();
     putToKafka();
-  }
-
-  delay(20);
-}
-
-void printDirectory(File dir, int numTabs) {
-  while (true) {
- 
-    File entry =  dir.openNextFile();
-    if (! entry) {
-      // no more files
-      break;
-    }
-    for (uint8_t i = 0; i < numTabs; i++) {
-      Serial.print('\t');
-    }
-    Serial.print(entry.name());
-    if (entry.isDirectory()) {
-      Serial.println("/");
-      printDirectory(entry, numTabs + 1);
-    } else {
-      // files have sizes, directories do not
-      Serial.print("\t\t");
-      Serial.println(entry.size(), DEC);
-    }
-    entry.close();
   }
 }
