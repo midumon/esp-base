@@ -1,4 +1,4 @@
-# Test Firmware x2.001
+# Firmware x2.001
 
 Test mit Aufteilung auf verschiedene Dateien.
 
