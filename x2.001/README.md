@@ -1,16 +1,9 @@
-# Firmware x2.001
+# Base 0101
 
-Test mit Aufteilung auf verschiedene Dateien.
-
-## Info
-
-Hardware: ESP32C3  
-Board: Xiao ESP32C3  
-
-Firmware: x2.001  
-Build: main
-
-Filesystem: x2.001  
-Build: main  
+Firmwarre: 2323
+Hardware: ESP32
+Board: MH-ET-LIVEminiKit
 
 ## Funktionen
+
+NTP Client

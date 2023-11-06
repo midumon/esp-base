@@ -1,7 +1,7 @@
 /*** Projekt
  ###
  
- Projekt für 
+ Projekt für Rheinturm-Spiegel
  
  Chip: ESP32C3 
  Board: XIAO ESP32C3
@@ -22,6 +22,7 @@
 ***/
 
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -33,26 +34,65 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include "SPIFFS.h"
-//#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
-
-// test mit verteilten Dateien
-#include "GlobalVars.h"
-#include "Pixels.h"
-#include "Helper.h"
 
 /* Nicht flüchtige Variablen als prefs */
 Preferences prefs;
+
+/* Firmware und Produktinfo */
+/* default */
+String d_Firmware = "X2.101";
+String d_Build = "0001";
+String d_ProductName = "Test";
+/* custom */
+String c_Firmware;
+String c_Build;
+String c_ProductName;
+String c_Product;
+String c_ProductMac;
+String c_ChipModel;
+uint8_t c_ChipRevision;
+
+// ### Wifi ###
+// default
+String ssid = "A";
+String pass = "B";
+String d_softAPName = "rheinturm";
+IPAddress d_ip(192, 168, 0, 200);
+IPAddress d_dns(8, 8, 8, 8);
+IPAddress d_gateway(192, 168, 0, 1);
+IPAddress d_mask(255, 255, 255, 0);
+String d_UserAgent = "MAF-RT";
+// custom
+String c_softAPName;
+IPAddress c_ip;
+IPAddress c_dns;
+IPAddress c_gateway;
+IPAddress c_mask;
+String c_UserAgent;
 
 // Create HTTPClient
 WiFiClientSecure wifiClient;
 HTTPClient httpClient;
     
+// ### MDNS ###
+// dafault
+String d_Hostname = "rheinturm-spiegel";
+// custom
+String c_Hostname = "";
+
 // ### Webserver ###
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 // ### NTP ###
+// default
+const char* ntpServer = "pool.ntp.org";
+const long updateInterval = 3600000;  // 60 * 60 * 1000 == 1 Stunde
+int32_t d_gmtOffset = 0;
+// custom
+int32_t c_gmtOffset = 0;
 // Create NTP-Client
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, ntpServer, c_gmtOffset, updateInterval);
@@ -62,6 +102,145 @@ char JSONBuffer[2048];
 size_t JSON_Buffer_size;
 DynamicJsonDocument myInfo(2048);
 DynamicJsonDocument toKafka(2048);
+
+/*
+ * 
+ * Die Uhr mit 46 Pixeln
+ * 
+ */
+
+/* Pin für den Data Anschluss */
+const int UHR_PIN = D10;
+/* Anzahl Led's */
+const int NUMPIXELS = 46;
+
+int i; // Zeiger
+int s, m, h;  // s== Sekunde m == Minute h == Stunde
+int so = 99;  // Sekunde old mit Vorbelegung für ersten loop
+int mo = 99;  // Minute old mit Vorbelegung für ersten loop
+int ho = 99;  // Stunde old mit Vorbelegung für ersten loop
+int s10, s1;  // TENSecond ONESecond
+int m10, m1;  // TENMinute ONEMinute
+int h10, h1;  // TENHour ONEHour
+
+// LED Farben definieren
+// HSV...
+// h == Farbe HUE 0 - 65535 0 - 360 Grad
+// s == Sättigung SAT 0- 255 0 - 100% 0 == ws >0 == color
+// v == Helligkeit VAL 0 - 255 /  0 - 100%
+
+// LED Werte
+// LED aus
+uint16_t offH = 0;
+uint8_t offS = 0;
+uint8_t offV = 0;
+
+/* Farbe der Uhr */
+/* default >> WHITE */
+uint16_t d_UhrH = 0;
+uint8_t d_UhrS = 0;
+uint8_t d_UhrV = 10;
+/* current */
+uint16_t c_UhrH;
+uint8_t c_UhrS;
+uint8_t c_UhrV;
+/* temp */
+uint16_t t_UhrH;
+uint8_t t_UhrS;
+uint8_t t_UhrV;
+
+/* Farbe der Trenner */
+/* default >> ROT */
+uint16_t d_SepH = 360;
+uint8_t d_SepS = 100;
+uint8_t d_SepV = 10;
+/* current */
+uint16_t c_SepH;
+uint8_t c_SepS;
+uint8_t c_SepV;
+/* temp */
+uint16_t t_SepH;
+uint8_t t_SepS;
+uint8_t t_SepV;
+
+/*
+ * Seperator State
+ * 0 == nie an
+ * 1 == flash original
+ * 2 == immer an 
+ * d_SepState >> default 1
+ * c_SepState >> current
+ */
+int d_SepState = 1;
+int c_SepState;
+
+/* 46 LED Adressen [0,...,46] mit Zuordnung zu ihrer Funktion */
+byte oneSecond[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };           //09
+byte tenSecond[] = { 10, 11, 12, 13, 14 };                  //15,16
+byte oneMinute[] = { 17, 18, 19, 20, 21, 22, 23, 24, 25 };  //26
+byte tenMinute[] = { 27, 28, 29, 30, 31 };                  //32,33
+byte oneHour[] = { 34, 35, 36, 37, 38, 39, 40, 41, 42 };    //43
+byte tenHour[] = { 44, 45 };
+byte Separator[] = { 9, 15, 16, 26, 32, 33, 43 };
+
+Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_GRB + NEO_KHZ800);
+#define LED(x, h, s, v) pixels.setPixelColor(x, pixels.ColorHSV(h, s, v))
+
+void MakePixels() {
+
+  t_UhrH = map(c_UhrH, 0, 360, 0, 65535);
+  t_UhrS = map(c_UhrS, 0, 100, 0, 255);
+  t_UhrV = map(c_UhrV, 0, 100, 0, 255);
+  
+  t_SepH = map(c_SepH, 0, 360, 0, 65535);
+  t_SepS = map(c_SepS, 0, 100, 0, 255);
+  t_SepV = map(c_SepV, 0, 100, 0, 255);
+
+  // Sekunden
+  s1 = s % 10;
+  s10 = s / 10;
+
+  // Minuten
+  m1 = m % 10;
+  m10 = m / 10;
+
+  // Stunden
+  h1 = h % 10;
+  h10 = h / 10;
+
+  // Set Pixels AN/AUS
+  for (i = 0; i < sizeof(oneSecond); i++)
+    (s1 <= i ? LED(oneSecond[i], offH, offS, offV) : LED(oneSecond[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenSecond); i++)
+    (s10 <= i ? LED(tenSecond[i], offH, offS, offV) : LED(tenSecond[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(oneMinute); i++)
+    (m1 <= i ? LED(oneMinute[i], offH, offS, offV) : LED(oneMinute[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenMinute); i++)
+    (m10 <= i ? LED(tenMinute[i], offH, offS, offV) : LED(tenMinute[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(oneHour); i++)
+    (h1 <= i ? LED(oneHour[i], offH, offS, offV) : LED(oneHour[i], t_UhrH, t_UhrS, t_UhrV));
+
+  for (i = 0; i < sizeof(tenHour); i++)
+    (h10 <= i ? LED(tenHour[i], offH, offS, offV) : LED(tenHour[i], t_UhrH, t_UhrS, t_UhrV));
+
+  // Separator
+  if (((s1 == 9) && (s10 == 5) && c_SepState == 1) || ((m1 == 9) && (m10 == 5) && c_SepState == 1) || c_SepState == 2) {
+    for (int i = 0; i < sizeof(Separator); i++) LED(Separator[i], t_SepH, t_SepS, t_SepV);
+  } else {
+    for (int i = 0; i < sizeof(Separator); i++) LED(Separator[i], offH, offS, offV);
+  }
+
+  delay(20);
+  pixels.show();  // showtime
+}
+
+// ENDE Pixel
+
+
 
 // Timer variables
 unsigned long previousMillis = 0;
@@ -163,6 +342,17 @@ void initSPIFFS() {
   if (!SPIFFS.begin(true)) {
     Serial.println("An error has occurred while mounting SPIFFS");
   }
+}
+
+// MAC als String ausgeben
+String getMacAsString() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  char baseMacChr[18] = {0};
+  sprintf(baseMacChr, "%02X%02X%02X%02X%02X%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+
+  return String(baseMacChr);
 }
 
 // ### Get my Location ###
@@ -305,24 +495,32 @@ void putToKafka(){
     JsonArray records = fdx.createNestedArray("records");  
     JsonObject nestRecords = records.createNestedObject();
       nestRecords["key"] = c_ProductMac;
-      JsonObject nestValue = nestRecords.createNestedObject("value"); 
+      JsonObject nestValue = nestRecords.createNestedObject("value");
+        JsonObject nestProduct = nestValue.createNestedObject("product"); 
         JsonObject nestDevice = nestValue.createNestedObject("device");
+          JsonObject nestDeviceHw = nestDevice.createNestedObject("hw");
+          JsonObject nestDeviceSw = nestDevice.createNestedObject("sw");
+          
         JsonObject nestLocation = nestValue.createNestedObject("location");
           JsonObject nestCustomLocation = nestLocation.createNestedObject("custom");
           JsonObject nestAutoLocation = nestLocation.createNestedObject("ipapi");
 
-    nestDevice["id"] = c_ProductMac;
-    nestDevice["model"] = c_ChipModel;
-    nestDevice["revision"] = c_ChipRevision;
-    nestDevice["firmware"] = c_Firmware;
-    nestDevice["SystemStarts"] = prefs.getULong64("SystemStarts");
-    nestDevice["Name"] = c_ProductName;
-    nestDevice["Useragent"] = c_UserAgent;
-    nestDevice["HostIP"] = WiFi.localIP().toString();
-    nestDevice["HostName"] = c_Hostname;
-    nestDevice["SPIFFStotalBytes"] = SPIFFS.totalBytes();
-    nestDevice["SPIFFSusedBytes"] = SPIFFS.usedBytes();
-
+    nestDeviceHw["id"] = c_ProductMac;
+    nestDeviceHw["model"] = c_ChipModel;
+    nestDeviceHw["revision"] = c_ChipRevision;
+    
+    nestDeviceSw["firmware"] = d_Firmware;
+    nestDeviceSw["build"] = d_Build;
+    nestDeviceSw["starts"] = prefs.getULong64("SystemStarts");
+    nestDeviceSw["fs-totalbytes"] = SPIFFS.totalBytes();
+    nestDeviceSw["fs-usedbytes"] = SPIFFS.usedBytes();
+    nestDeviceSw["useragent"] = c_UserAgent;
+    nestDeviceSw["ip"] = WiFi.localIP().toString();
+    nestDeviceSw["hostname"] = c_Hostname;
+     
+    nestProduct["name"] = c_ProductName;
+    nestProduct["seriennummer"] = "000000"; 
+     
     nestAutoLocation["city"]= myInfo["city"];
     nestAutoLocation["region"] = myInfo["region"];
     nestAutoLocation["country"] = myInfo["country"];
@@ -429,9 +627,12 @@ void setup() {
 
   c_ProductName = prefs.getString("ProductName", d_ProductName);
   prefs.putString("ProductName", c_ProductName);    
+
+  c_Firmware = d_Firmware;
+  c_Build = d_Build;
   
-  BeginPixels();
-  ShowPixels();
+  pinMode(UHR_PIN, OUTPUT);
+  pixels.show();  // showtime - Init all pixels OFF
 
   // WiFi im Station Mode
   if(initWiFi()) {
@@ -570,6 +771,45 @@ void setup() {
     timeClient.setTimeOffset(prefs.getInt("GmtOffset"));
     timeClient.update();
 
+  // Port defaults to 3232
+  // ArduinoOTA.setPort(3232);
+
+  ArduinoOTA.setHostname(d_Hostname.c_str());
+
+  // No authentication by default
+  // ArduinoOTA.setPassword("admin");
+
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+  ArduinoOTA.begin();
   }
  
   // WiFi im AP Mode
@@ -642,7 +882,9 @@ void setup() {
 
 // RUN
 void loop() {
-  
+
+  ArduinoOTA.handle();
+ 
   s = timeClient.getSeconds();
   m = timeClient.getMinutes();
   h = timeClient.getHours();
