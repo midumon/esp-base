@@ -4,7 +4,7 @@ Product: 000000
 Name: B1 - Uhr hinter Spiegel  
 
 Firmwarre: x2.001  
-Build: none  
+Build: r1  
 Hardware: ESP32  
 Board: Seeed Xiao ESP32C3  
 
@@ -18,4 +18,4 @@ Board: Seeed Xiao ESP32C3
 - IPAPI Standort
 - Uhr 46 Pixel
 - OTA Basic
-- 
+  

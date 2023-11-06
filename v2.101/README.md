@@ -1,9 +1,15 @@
 # Base 0101
 
-Firmwarre: 2323
+Firmwarre: ESP32
 Hardware: ESP32
-Board: MH-ET-LIVEminiKit
+Board: Xiao_ESP32C3
 
 ## Funktionen
 
-NTP Client
+- NTP CLient
+- MDNS
+- Kafka Producer
+- WiFi Manager
+- Asyncroner Webserver
+- IPAPI Standort
+- Uhr 46 Pixel
