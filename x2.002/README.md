@@ -1,9 +1,9 @@
 # x2.001
 
 Product: 000000  
-Name: B1 - Uhr hinter Spiegel  
+Name: B1 - Rheinturm Garten  
 
-Firmwarre: x2.001  
+Firmwarre: x2.002  
 Build: none  
 Hardware: ESP32  
 Board: Seeed Xiao ESP32C3  
