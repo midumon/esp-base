@@ -42,7 +42,7 @@ Preferences prefs;
 /* Firmware und Produktinfo */
 /* default */
 String d_Firmware = "V2.101";
-String d_Build = "0000";
+String d_Build = "main";
 String d_ProductName = "Test";
 /* custom */
 String c_Firmware;
@@ -77,7 +77,7 @@ HTTPClient httpClient;
     
 // ### MDNS ###
 // dafault
-String d_Hostname = "rheinturm";
+String d_Hostname = "rheinturm-c";
 // custom
 String c_Hostname = "";
 
@@ -262,7 +262,7 @@ bool initWiFi() {
     }
   }
 
-  c_ip = WiFi.softAPIP();
+  c_ip = WiFi.localIP();
   Serial.print("Station IP address: ");
   Serial.println(c_ip); 
   
@@ -474,9 +474,9 @@ void getMyInfo(){
 
 void putToKafka(){
 
-  // https://kafka-bridge.rheinturm.cloud
+  // https://bridge.kafka.rheinturm.cloud
 
-  //String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/" + c_ProductMac;
+  //String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/" + c_ProductMac;
   String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/FDX";
   // JSON leeren
   toKafka.clear();

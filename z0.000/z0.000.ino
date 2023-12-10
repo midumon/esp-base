@@ -1,26 +1,16 @@
 
+#include <Arduino.h>
+#include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 #include <ESPmDNS.h>
 #define U_PART U_SPIFFS
 
-#define MYSSID "B1-Access"
-#define PASSWD "wlanPWD@unifi"
+String ssid = "B1-Access";
+String pass =  "wlanPWD@unifi";
 
 AsyncWebServer server(80);
 size_t content_len;
-
-boolean wifiConnect(char* host) {
-#ifdef MYSSID
-  WiFi.begin(MYSSID,PASSWD);
-  WiFi.waitForConnectResult();
-#else
-  WiFi.begin();
-  WiFi.waitForConnectResult();
-#endif
-  Serial.println(WiFi.localIP());
-  return (WiFi.status() == WL_CONNECTED);
-}
 
 void handleRoot(AsyncWebServerRequest *request) {
   request->redirect("/update");
@@ -68,10 +58,7 @@ void printProgress(size_t prg, size_t sz) {
 boolean webInit() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {request->redirect("/update");});
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){handleUpdate(request);});
-  server.on("/doUpdate", HTTP_POST,
-    [](AsyncWebServerRequest *request) {},
-    [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data,
-                  size_t len, bool final) {handleDoUpdate(request, filename, index, data, len, final);}
+  server.on("/doUpdate", HTTP_POST,[](AsyncWebServerRequest *request) {},[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {handleDoUpdate(request, filename, index, data, len, final);}
   );
   server.onNotFound([](AsyncWebServerRequest *request){request->send(404);});
   server.begin();
@@ -80,16 +67,23 @@ boolean webInit() {
 
 void setup() {
   Serial.begin(115200);
-  char host[16];
-  snprintf(host, 16, "ESP%012llX", ESP.getEfuseMac());
-  if(!wifiConnect(host)) {
-    Serial.println("Connection failed");
-    return;
+ 
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
   }
-  MDNS.begin(host);
+  
+  MDNS.begin("TESTABCD");
   webInit();
   MDNS.addService("http", "tcp", 80);
-  Serial.printf("Ready! Open http://%s.local in your browser\n", host);
+  Serial.printf("Ready! Open http://%s.local in your browser\n", WiFi.localIP());
 }
 
-void loop() {delay(0xFFFFFFFF);}
+void loop() {
+  
+  delay(1000);
+  
+  }

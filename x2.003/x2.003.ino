@@ -1,15 +1,15 @@
 /*** Projekt
  ###
  
- Projekt für Rheinturm-Garten
+ Projekt für Rheinturm-Spiegel
 
  Chip: ESP32
- Board: MH ET Live MiniKit
- Firmware: x2.002
+ Board: MH ET Live ESP32MiniKit
+ Firmware: x2.003
  Build: main
    
  Sandwich Modell mit 46 Pixeln
- AdaFruit Stripe 20mm Spezial
+ AdaFruit Stripe Standard
 
  ###
 ***/
@@ -44,9 +44,9 @@ Preferences prefs;
 
 /* Firmware und Produktinfo */
 /* default */
-String d_Firmware = "x2.002";
-String d_Build = "r1";
-String d_ProductName = "B1 Rheinturm Garten";
+String d_Firmware = "x2.003";
+String d_Build = "main";
+String d_ProductName = "B1 Testaufbau - B";
 /* custom */
 String c_Firmware;
 String c_Build;
@@ -80,7 +80,7 @@ HTTPClient httpClient;
     
 // ### MDNS ###
 // dafault
-String d_Hostname = "rheinturm-garten";
+String d_Hostname = "rheinturm-b";
 // custom
 String c_Hostname = "";
 
@@ -112,7 +112,7 @@ DynamicJsonDocument toKafka(2048);
  */
 
 /* Pin für den Data Anschluss */
-const int UHR_PIN = 16;
+const int UHR_PIN = 22;
 /* Anzahl Led's */
 const int NUMPIXELS = 46;
 
@@ -177,16 +177,15 @@ int d_SepState = 1;
 int c_SepState;
 
 /* 46 LED Adressen [0,...,46] mit Zuordnung zu ihrer Funktion */
-byte oneSecond[] = {45, 44, 43, 42, 41, 40, 39, 38, 37};
-byte tenSecond[] = {35, 34, 33, 32, 31};
-byte oneMinute[] = {28, 27, 26, 25, 24, 23, 22, 21, 20};
-byte tenMinute[] = {18, 17, 16, 15, 14};
-byte oneHour[] = {11, 10, 9, 8, 7, 6, 5, 4, 3};
-byte tenHour[] = {1, 0};
-byte Separator[] = {36, 30, 29, 19, 13, 12, 2};
+byte oneSecond[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };           //09
+byte tenSecond[] = { 10, 11, 12, 13, 14 };                  //15,16
+byte oneMinute[] = { 17, 18, 19, 20, 21, 22, 23, 24, 25 };  //26
+byte tenMinute[] = { 27, 28, 29, 30, 31 };                  //32,33
+byte oneHour[] = { 34, 35, 36, 37, 38, 39, 40, 41, 42 };    //43
+byte tenHour[] = { 44, 45 };
+byte Separator[] = { 9, 15, 16, 26, 32, 33, 43 };
 
-// NEO Farbkanäle RGB
-Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_GRB + NEO_KHZ800);
 #define LED(x, h, s, v) pixels.setPixelColor(x, pixels.ColorHSV(h, s, v))
 
 void MakePixels() {
@@ -478,10 +477,10 @@ void getMyInfo(){
 
 void putToKafka(){
 
-  // https://bridge.kafka.rheinturm.cloud
+  // https://kafka-bridge.rheinturm.cloud
 
-  //String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/" + c_ProductMac;
-  String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/FDX";
+  //String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/" + c_ProductMac;
+  String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/FDX";
   // JSON leeren
   toKafka.clear();
     

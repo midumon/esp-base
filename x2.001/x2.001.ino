@@ -44,7 +44,7 @@ Preferences prefs;
 
 /* Firmware und Produktinfo */
 /* default */
-String d_Firmware = "x2.101";
+String d_Firmware = "x2.001";
 String d_Build = "r1";
 String d_ProductName = "B1 Testaufbau - Uhr hinter Spiegel";
 /* custom */
@@ -368,6 +368,7 @@ void getMyInfo(){
     wifiClient.setInsecure();  // HTTPS ohne SSL Überprüfung              
     String myUrl = "https://ipapi.co/json";
 
+    httpClient.setUserAgent("TEST1234");
     httpClient.begin(wifiClient, myUrl); //Specify the URL
     int httpCode = httpClient.GET(); //Make the request
 
@@ -477,17 +478,18 @@ void getMyInfo(){
 
 void putToKafka(){
 
-  // https://kafka-bridge.rheinturm.cloud
+  // https://bridge.kafka.rheinturm.cloud
 
-  //String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/" + c_ProductMac;
-  String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/FDX";
+  //String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/" + c_ProductMac;
+  String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/FDX";
   // JSON leeren
   toKafka.clear();
     
   if ((WiFi.status() == WL_CONNECTED)) { //Check the current connection status
 
     wifiClient.setInsecure();  // HTTPS ohne SSL Überprüfung  
-     
+
+    httpClient.setUserAgent("TEST1234");
     httpClient.begin(wifiClient, myUrl);  
     httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");  
     //httpClient.addHeader("api_token", "iuergpeiugpieufperugpeiuepiueiughepiuh");

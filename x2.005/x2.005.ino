@@ -1,11 +1,11 @@
 /*** Projekt
  ###
  
- Projekt für Rheinturm-Garten
+ Projekt für Rheinturm-Markus
 
  Chip: ESP32
- Board: MH ET Live MiniKit
- Firmware: x2.002
+ Board: esp32c3
+ Firmware: x2.005
  Build: main
    
  Sandwich Modell mit 46 Pixeln
@@ -44,9 +44,9 @@ Preferences prefs;
 
 /* Firmware und Produktinfo */
 /* default */
-String d_Firmware = "x2.002";
+String d_Firmware = "x2.005";
 String d_Build = "r1";
-String d_ProductName = "B1 Rheinturm Garten";
+String d_ProductName = "Rheinturm Markus";
 /* custom */
 String c_Firmware;
 String c_Build;
@@ -80,7 +80,7 @@ HTTPClient httpClient;
     
 // ### MDNS ###
 // dafault
-String d_Hostname = "rheinturm-garten";
+String d_Hostname = "rheinturm-markus";
 // custom
 String c_Hostname = "";
 
@@ -112,7 +112,7 @@ DynamicJsonDocument toKafka(2048);
  */
 
 /* Pin für den Data Anschluss */
-const int UHR_PIN = 16;
+const int UHR_PIN = D10;
 /* Anzahl Led's */
 const int NUMPIXELS = 46;
 
