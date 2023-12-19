@@ -1,7 +1,7 @@
 /*** Projekt
  ###
  
- Projekt für Rheinturm-André
+ Projekt für Rheinturm Fortuna Muster
 
  Chip: ESP32
  Board: MH ET Live MiniKit
@@ -55,6 +55,9 @@ String c_Product;
 String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
+
+bool _FirstLoop;
+uint8_t c_LoopM;
 
 // ### Wifi ###
 // default
@@ -358,6 +361,14 @@ String getMacAsString() {
   return String(baseMacChr);
 }
 
+// das letze Byte der MAC Modulo 60 Rest als LoopTimer Minuten
+uint8_t getLoopM() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  return uint8_t(baseMac[5] % 60);
+}
+
 // ### Get my Location ###
 
 void getMyInfo(){
@@ -490,8 +501,7 @@ void putToKafka(){
     wifiClient.setInsecure();  // HTTPS ohne SSL Überprüfung  
      
     httpClient.begin(wifiClient, myUrl);  
-    httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");  
-    //httpClient.addHeader("api_token", "iuergpeiugpieufperugpeiuepiueiughepiuh");
+    httpClient.setAuthorization("turm@kafkabridge", "vC9dg635Tzui87hstz3pJ2Kmcu78sh265sgkeOS2Bns74");
 
     JsonObject fdx = toKafka.to<JsonObject>();
     
@@ -879,6 +889,8 @@ void setup() {
     
   }
   
+  _FirstLoop = true;
+
   delay(100);
   
 }
@@ -898,17 +910,13 @@ void loop() {
     MakePixels();
   }
 
-  // Jobs jede Minute und bei Start
-  if (mo != m) {
-    mo = m;
-    //getMyInfo();
-    //putToKafka();
-  }
-
   // Jobs jede Stunde und bei Start
-  if (ho != h) {
+  if ((_FirstLoop == true) || ((ho != h) && (m == c_LoopM))) {
     ho = h;
     getMyInfo();
     putToKafka();
   }
+
+  _FirstLoop = false;
+  
 }
