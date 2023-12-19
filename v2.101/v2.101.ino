@@ -53,6 +53,9 @@ String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
 
+bool _FirstLoop;
+uint8_t c_LoopM;
+
 // ### Wifi ###
 // default
 String ssid = "A";
@@ -239,8 +242,6 @@ void MakePixels() {
 
 // ENDE Pixel
 
-
-
 // Timer variables
 unsigned long previousMillis = 0;
 const long interval = 5000;  // interval to wait for Wi-Fi connection (milliseconds)
@@ -354,8 +355,15 @@ String getMacAsString() {
   return String(baseMacChr);
 }
 
-// ### Get my Location ###
+// das letze Byte der MAC Modulo 60 Rest als LoopTimer Minuten
+uint8_t getLoopM() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  return uint8_t(baseMac[5] % 60);
+}
 
+// ### Get my Location ###
 void getMyInfo(){
 
   if ((WiFi.status() == WL_CONNECTED)) { //Check the current connection status
@@ -446,38 +454,21 @@ void getMyInfo(){
 
               Serial.println("utc_offset neu!!");
             }
-            else{
-              Serial.println("utc_offset unverändert");
-            }
           }
-          else{
-            Serial.println("utc_offset no valid");
-          }
-        }
-        else{
-          Serial.println("utc_offset not in list");
         }
       }
     }
-    
-    else {
-      Serial.println("Error on HTTP request");
-    }
-
-    //httpClient.end(); //Free the resources
     httpClient.end(); //Free the resources
   }
-
 }
 
 // Send to Kafka
-
 void putToKafka(){
 
   // https://bridge.kafka.rheinturm.cloud
 
   //String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/" + c_ProductMac;
-  String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/FDX";
+  String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/FDX";
   // JSON leeren
   toKafka.clear();
     
@@ -487,31 +478,40 @@ void putToKafka(){
      
     httpClient.begin(wifiClient, myUrl);  
     httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");  
-    //httpClient.addHeader("api_token", "iuergpeiugpieufperugpeiuepiueiughepiuh");
+    httpClient.addHeader("User-Agent", c_UserAgent);
 
     JsonObject fdx = toKafka.to<JsonObject>();
     
     JsonArray records = fdx.createNestedArray("records");  
     JsonObject nestRecords = records.createNestedObject();
       nestRecords["key"] = c_ProductMac;
-      JsonObject nestValue = nestRecords.createNestedObject("value"); 
+      JsonObject nestValue = nestRecords.createNestedObject("value");
+        JsonObject nestProduct = nestValue.createNestedObject("product"); 
         JsonObject nestDevice = nestValue.createNestedObject("device");
+          JsonObject nestDeviceHw = nestDevice.createNestedObject("hw");
+          JsonObject nestDeviceSw = nestDevice.createNestedObject("sw");
+          
         JsonObject nestLocation = nestValue.createNestedObject("location");
           JsonObject nestCustomLocation = nestLocation.createNestedObject("custom");
           JsonObject nestAutoLocation = nestLocation.createNestedObject("ipapi");
 
-    nestDevice["id"] = c_ProductMac;
-    nestDevice["model"] = c_ChipModel;
-    nestDevice["revision"] = c_ChipRevision;
-    nestDevice["firmware"] = c_Firmware;
-    nestDevice["SystemStarts"] = prefs.getULong64("SystemStarts");
-    nestDevice["Name"] = c_ProductName;
-    nestDevice["Useragent"] = c_UserAgent;
-    nestDevice["HostIP"] = WiFi.localIP().toString();
-    nestDevice["HostName"] = c_Hostname;
-    nestDevice["SPIFFStotalBytes"] = SPIFFS.totalBytes();
-    nestDevice["SPIFFSusedBytes"] = SPIFFS.usedBytes();
-
+    nestDeviceHw["id"] = c_ProductMac;
+    nestDeviceHw["model"] = c_ChipModel;
+    nestDeviceHw["revision"] = c_ChipRevision;
+    
+    nestDeviceSw["firmware"] = d_Firmware;
+    nestDeviceSw["build"] = d_Build;
+    nestDeviceSw["starts"] = prefs.getULong64("SystemStarts");
+    nestDeviceSw["fs_totalbytes"] = SPIFFS.totalBytes();
+    nestDeviceSw["fs_usedbytes"] = SPIFFS.usedBytes();
+    nestDeviceSw["useragent"] = c_UserAgent;
+    nestDeviceSw["ip"] = WiFi.localIP().toString();
+    nestDeviceSw["hostname"] = c_Hostname;
+    nestDeviceSw["loop_m"] = c_LoopM;
+     
+    nestProduct["name"] = c_ProductName;
+    nestProduct["seriennummer"] = "000000"; 
+     
     nestAutoLocation["city"]= myInfo["city"];
     nestAutoLocation["region"] = myInfo["region"];
     nestAutoLocation["country"] = myInfo["country"];
@@ -530,20 +530,10 @@ void putToKafka(){
     nestCustomLocation["utc_offset"] = "";  
     
     String requestBody;
-    serializeJson(fdx, requestBody);
-    Serial.println(requestBody);
-          
     int httpResponseCode = httpClient.POST(requestBody);
  
-    if(httpResponseCode>0){
-       
+    if(httpResponseCode>0){   
       String response = httpClient.getString();                       
-       
-      Serial.println(httpResponseCode);   
-      Serial.println(response);
-    }
-    else {
-      Serial.println("Error on HTTP request");   
     }
     httpClient.end(); //Free the resources
   }
@@ -560,7 +550,8 @@ void setup() {
   c_ChipModel = ESP.getChipModel();
   c_ChipRevision = ESP.getChipRevision();
   c_ProductMac = getMacAsString();
-
+  c_LoopM = getLoopM();
+  
   // Start SPIFFS
   initSPIFFS();
 
@@ -843,16 +834,18 @@ void loop() {
   }
 
   // Jobs jede Minute und bei Start
-  if (mo != m) {
+  if ((_FirstLoop == true) || ((mo != m) && (m == c_LoopM))) {
     mo = m;
     //getMyInfo();
     //putToKafka();
   }
 
   // Jobs jede Stunde und bei Start
-  if (ho != h) {
+  if ((_FirstLoop == true) || ((ho != h) && (m == c_LoopM))) {
     ho = h;
     getMyInfo();
     putToKafka();
   }
+
+  _FirstLoop = false;
 }

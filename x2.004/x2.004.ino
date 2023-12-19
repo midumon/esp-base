@@ -2,10 +2,8 @@
  ###
  
  Projekt für Rheinturm-André
-
- Chip: ESP32
- Board: MH ET Live MiniKit
- Firmware: x2.002
+ 
+ Firmware: x2.004
  Build: main
    
  Sandwich Modell mit 46 Pixeln
@@ -55,6 +53,9 @@ String c_Product;
 String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
+
+bool _FirstLoop;
+uint8_t c_LoopM;
 
 // ### Wifi ###
 // default
@@ -243,8 +244,6 @@ void MakePixels() {
 
 // ENDE Pixel
 
-
-
 // Timer variables
 unsigned long previousMillis = 0;
 const long interval = 5000;  // interval to wait for Wi-Fi connection (milliseconds)
@@ -358,8 +357,15 @@ String getMacAsString() {
   return String(baseMacChr);
 }
 
-// ### Get my Location ###
+// das letze Byte der MAC Modulo 60 Rest als LoopTimer Minuten
+uint8_t getLoopM() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  return uint8_t(baseMac[5] % 60);
+}
 
+// ### Get my Location ###
 void getMyInfo(){
 
   if ((WiFi.status() == WL_CONNECTED)) { //Check the current connection status
@@ -475,7 +481,6 @@ void getMyInfo(){
 }
 
 // Send to Kafka
-
 void putToKafka(){
 
   // https://bridge.kafka.rheinturm.cloud
@@ -491,8 +496,8 @@ void putToKafka(){
      
     httpClient.begin(wifiClient, myUrl);  
     httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");  
-    //httpClient.addHeader("api_token", "iuergpeiugpieufperugpeiuepiueiughepiuh");
-
+    httpClient.setAuthorization("turm@kafkabridge", "vC9dg635Tzui87hstz3pJ2Kmcu78sh265sgkeOS2Bns74");
+    
     JsonObject fdx = toKafka.to<JsonObject>();
     
     JsonArray records = fdx.createNestedArray("records");  
@@ -520,6 +525,7 @@ void putToKafka(){
     nestDeviceSw["useragent"] = c_UserAgent;
     nestDeviceSw["ip"] = WiFi.localIP().toString();
     nestDeviceSw["hostname"] = c_Hostname;
+    nestDeviceSw["loop_m"] = c_LoopM;
      
     nestProduct["name"] = c_ProductName;
     nestProduct["seriennummer"] = "000000"; 
@@ -572,6 +578,7 @@ void setup() {
   c_ChipModel = ESP.getChipModel();
   c_ChipRevision = ESP.getChipRevision();
   c_ProductMac = getMacAsString();
+  c_LoopM = getLoopM();
 
   // Start SPIFFS
   initSPIFFS();
@@ -633,7 +640,7 @@ void setup() {
 
   c_Firmware = d_Firmware;
   c_Build = d_Build;
-  
+ 
   pinMode(UHR_PIN, OUTPUT);
   pixels.show();  // showtime - Init all pixels OFF
 
@@ -878,6 +885,8 @@ void setup() {
     MDNS.addService("http", "tcp", 80);
     
   }
+
+  _FirstLoop = true;
   
   delay(100);
   
@@ -899,16 +908,25 @@ void loop() {
   }
 
   // Jobs jede Minute und bei Start
-  if (mo != m) {
+  if ((_FirstLoop == true) || (mo != m)) {
+    mo = m;
+    //putToKafka();
+  }
+  
+  // Jobs jede Custom Minute und bei Start
+  if ((_FirstLoop == true) || ((mo != m) && (m == c_LoopM))) {
     mo = m;
     //getMyInfo();
     //putToKafka();
   }
 
   // Jobs jede Stunde und bei Start
-  if (ho != h) {
+  if ((_FirstLoop == true) || ((ho != h) && (m == c_LoopM))) {
     ho = h;
     getMyInfo();
     putToKafka();
   }
+
+  _FirstLoop = false;
+  
 }
