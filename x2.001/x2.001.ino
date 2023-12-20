@@ -56,6 +56,9 @@ String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
 
+bool _FirstLoop;
+uint8_t c_LoopM;
+
 // ### Wifi ###
 // default
 String ssid = "A";
@@ -242,8 +245,6 @@ void MakePixels() {
 
 // ENDE Pixel
 
-
-
 // Timer variables
 unsigned long previousMillis = 0;
 const long interval = 5000;  // interval to wait for Wi-Fi connection (milliseconds)
@@ -357,8 +358,15 @@ String getMacAsString() {
   return String(baseMacChr);
 }
 
-// ### Get my Location ###
+// das letze Byte der MAC Modulo 60 Rest als LoopTimer Minuten
+uint8_t getLoopM() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  return uint8_t(baseMac[5] % 60);
+}
 
+// ### Get my Location ###
 void getMyInfo(){
 
   if ((WiFi.status() == WL_CONNECTED)) { //Check the current connection status
@@ -521,6 +529,7 @@ void putToKafka(){
     nestDeviceSw["useragent"] = c_UserAgent;
     nestDeviceSw["ip"] = WiFi.localIP().toString();
     nestDeviceSw["hostname"] = c_Hostname;
+    nestDeviceSw["loop_m"] = c_LoopM;    
      
     nestProduct["name"] = c_ProductName;
     nestProduct["seriennummer"] = "000000"; 
@@ -573,6 +582,7 @@ void setup() {
   c_ChipModel = ESP.getChipModel();
   c_ChipRevision = ESP.getChipRevision();
   c_ProductMac = getMacAsString();
+  c_LoopM = getLoopM();  
 
   // Start SPIFFS
   initSPIFFS();
@@ -880,6 +890,8 @@ void setup() {
     
   }
   
+  _FirstLoop = true;
+
   delay(100);
   
 }
@@ -899,17 +911,20 @@ void loop() {
     MakePixels();
   }
 
-  // Jobs jede Minute und bei Start
-  if (mo != m) {
+  // Jobs jede Custom Minute und bei Start
+  if ((_FirstLoop == true) || ((mo != m) && (m == c_LoopM))) {
     mo = m;
     //getMyInfo();
     //putToKafka();
   }
 
   // Jobs jede Stunde und bei Start
-  if (ho != h) {
+  if ((_FirstLoop == true) || ((ho != h) && (m == c_LoopM))) {
     ho = h;
     getMyInfo();
     putToKafka();
   }
+  
+  _FirstLoop = false;
+  
 }

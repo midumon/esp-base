@@ -1,7 +1,7 @@
 # x2.001
 
 Product: 000000  
-Name: Rheinturm - Fortuna Muster
+Name: Rheinturm - Fortuna Muster A
 
 Firmwarre: x2.006  
 Build: none  

@@ -1,15 +1,15 @@
 /*** Projekt
  ###
  
- Projekt für Rheinturm-Spiegel
+ Projekt für Rheinturm Fortuna Muster
 
  Chip: ESP32
- Board: MH ET Live ESP32MiniKit
- Firmware: x2.003
+ Board: MH ET Live MiniKit
+ Firmware: x2.002
  Build: main
    
  Sandwich Modell mit 46 Pixeln
- AdaFruit Stripe Standard
+ AdaFruit Stripe 20mm Spezial
 
  ###
 ***/
@@ -44,9 +44,9 @@ Preferences prefs;
 
 /* Firmware und Produktinfo */
 /* default */
-String d_Firmware = "x2.003";
-String d_Build = "main";
-String d_ProductName = "B1 Testaufbau - B";
+String d_Firmware = "x2.006";
+String d_Build = "r1";
+String d_ProductName = "Rheinturm Fortuna Muster";
 /* custom */
 String c_Firmware;
 String c_Build;
@@ -55,6 +55,9 @@ String c_Product;
 String c_ProductMac;
 String c_ChipModel;
 uint8_t c_ChipRevision;
+
+bool _FirstLoop;
+uint8_t c_LoopM;
 
 // ### Wifi ###
 // default
@@ -80,7 +83,7 @@ HTTPClient httpClient;
     
 // ### MDNS ###
 // dafault
-String d_Hostname = "rheinturm-b";
+String d_Hostname = "rheinturm-fortuna-muster";
 // custom
 String c_Hostname = "";
 
@@ -112,7 +115,7 @@ DynamicJsonDocument toKafka(2048);
  */
 
 /* Pin für den Data Anschluss */
-const int UHR_PIN = 22;
+const int UHR_PIN = D10;
 /* Anzahl Led's */
 const int NUMPIXELS = 46;
 
@@ -185,6 +188,7 @@ byte oneHour[] = { 34, 35, 36, 37, 38, 39, 40, 41, 42 };    //43
 byte tenHour[] = { 44, 45 };
 byte Separator[] = { 9, 15, 16, 26, 32, 33, 43 };
 
+// NEO Farbkanäle RGB
 Adafruit_NeoPixel pixels(NUMPIXELS, UHR_PIN, NEO_GRB + NEO_KHZ800);
 #define LED(x, h, s, v) pixels.setPixelColor(x, pixels.ColorHSV(h, s, v))
 
@@ -357,6 +361,14 @@ String getMacAsString() {
   return String(baseMacChr);
 }
 
+// das letze Byte der MAC Modulo 60 Rest als LoopTimer Minuten
+uint8_t getLoopM() {
+  uint8_t baseMac[6];
+  // Get MAC address for WiFi station
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  return uint8_t(baseMac[5] % 60);
+}
+
 // ### Get my Location ###
 
 void getMyInfo(){
@@ -477,10 +489,10 @@ void getMyInfo(){
 
 void putToKafka(){
 
-  // https://kafka-bridge.rheinturm.cloud
+  // https://bridge.kafka.rheinturm.cloud
 
-  //String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/" + c_ProductMac;
-  String myUrl = "https://bridge-kafka.rheinturm.cloud/topics/FDX";
+  //String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/" + c_ProductMac;
+  String myUrl = "https://bridge.kafka.rheinturm.cloud/topics/FDX";
   // JSON leeren
   toKafka.clear();
     
@@ -489,8 +501,7 @@ void putToKafka(){
     wifiClient.setInsecure();  // HTTPS ohne SSL Überprüfung  
      
     httpClient.begin(wifiClient, myUrl);  
-    httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");  
-    //httpClient.addHeader("api_token", "iuergpeiugpieufperugpeiuepiueiughepiuh");
+    httpClient.setAuthorization("turm@kafkabridge", "vC9dg635Tzui87hstz3pJ2Kmcu78sh265sgkeOS2Bns74");
 
     JsonObject fdx = toKafka.to<JsonObject>();
     
@@ -519,6 +530,7 @@ void putToKafka(){
     nestDeviceSw["useragent"] = c_UserAgent;
     nestDeviceSw["ip"] = WiFi.localIP().toString();
     nestDeviceSw["hostname"] = c_Hostname;
+    nestDeviceSw["loop_m"] = c_LoopM;    
      
     nestProduct["name"] = c_ProductName;
     nestProduct["seriennummer"] = "000000"; 
@@ -571,6 +583,7 @@ void setup() {
   c_ChipModel = ESP.getChipModel();
   c_ChipRevision = ESP.getChipRevision();
   c_ProductMac = getMacAsString();
+  c_LoopM = getLoopM();
 
   // Start SPIFFS
   initSPIFFS();
@@ -878,6 +891,8 @@ void setup() {
     
   }
   
+  _FirstLoop = true;
+
   delay(100);
   
 }
@@ -897,17 +912,20 @@ void loop() {
     MakePixels();
   }
 
-  // Jobs jede Minute und bei Start
-  if (mo != m) {
+  // Jobs bei Start und zur Custom Minute
+  if ((_FirstLoop == true) || ((mo != m) && (m == c_LoopM))) {
     mo = m;
     //getMyInfo();
     //putToKafka();
   }
 
-  // Jobs jede Stunde und bei Start
-  if (ho != h) {
+  // Jobs bei Start und jede Stunde zur Custom Minute
+  if ((_FirstLoop == true) || ((ho != h) && (m == c_LoopM))) {
     ho = h;
     getMyInfo();
     putToKafka();
   }
+  
+  _FirstLoop = false;
+  
 }

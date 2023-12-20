@@ -5,8 +5,8 @@ Name: B1 - Rheinturm Garten
 
 Firmwarre: x2.002  
 Build: none  
-Hardware: ESP32  
-Board: Seeed Xiao ESP32C3  
+Hardware: ESP32
+Board: MH ET Live
 
 ## Funktionen
 
