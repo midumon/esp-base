@@ -1,0 +1,8 @@
+adafruit/Adafruit NeoPixel @ ^1.8.0
+arduino-libraries/NTPClient@^3.2.1
+knolleary/PubSubClient@^2.8
+paulstoffregen/Time@^1.6
+links2004/WebSockets@^2.4.1
+SPI
+bblanchon/ArduinoJson@^6.21.2
+Wire

@@ -1,0 +1,6 @@
+paulstoffregen/Time@^1.6.1
+me-no-dev/AsyncTCP@^1.1.1
+bblanchon/ArduinoJson@^6.21.3
+arduino-libraries/NTPClient@^3.2.1
+me-no-dev/ESP Async WebServer@^1.2.3
+adafruit/Adafruit NeoPixel @ ^1.8.0

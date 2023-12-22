@@ -1,0 +1,10 @@
+bblanchon/ArduinoJson@^6.18.0
+me-no-dev/ESP Async WebServer@^1.2.3
+knolleary/PubSubClient@^2.8
+paulstoffregen/Time@^1.6
+me-no-dev/AsyncTCP@^1.1.1
+ayushsharma82/WebSerial@^1.4.0
+ayushsharma82/AsyncElegantOTA@^2.2.5
+arduino-libraries/Arduino_JSON @ 0.1.0
+arduino-libraries/NTPClient@^3.1.0
+adafruit/Adafruit NeoPixel @ ^1.8.0

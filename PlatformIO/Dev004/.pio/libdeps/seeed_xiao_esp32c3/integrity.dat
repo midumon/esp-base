@@ -1,0 +1,7 @@
+adafruit/Adafruit NeoPixel @ ^1.8.0
+arduino-libraries/NTPClient@ 3.2.1
+paulstoffregen/Time@ 1.6.1
+ayushsharma82/WebSerial@ 1.4.0
+me-no-dev/ESP Async WebServer@ 1.2.3
+bblanchon/ArduinoJson@ 6.21.3
+me-no-dev/AsyncTCP@^1.1.1
